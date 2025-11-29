@@ -14,10 +14,23 @@ if (fs.existsSync(SHLOKS_FILE)) {
 export const getShloks = (req: Request, res: Response) => {
     try {
         let results = shloksCache;
-        const { chapterNumber, search, page = 1, limit = 20 } = req.query;
+        const { chapterNumber, chapterNumbers, tags, search, page = 1, limit = 20 } = req.query;
 
+        // Apply filters first
         if (chapterNumber) {
             results = results.filter(s => s.chapterNumber === Number(chapterNumber));
+        }
+
+        if (chapterNumbers) {
+            const chapters = String(chapterNumbers).split(',').map(Number);
+            results = results.filter(s => chapters.includes(s.chapterNumber));
+        }
+
+        if (tags) {
+            const tagList = String(tags).split(',').map(t => t.trim().toLowerCase());
+            results = results.filter(s => 
+                s.tags && s.tags.some(t => tagList.includes(t.toLowerCase()))
+            );
         }
 
         if (search) {
@@ -26,22 +39,34 @@ export const getShloks = (req: Request, res: Response) => {
                 s.sanskritText.toLowerCase().includes(query) ||
                 s.translationEnglish.toLowerCase().includes(query) ||
                 s.translationHindi.toLowerCase().includes(query) ||
-                s.transliteration.toLowerCase().includes(query)
+                s.transliteration.toLowerCase().includes(query) ||
+                (s.tags && s.tags.some(t => t.toLowerCase().includes(query)))
             );
         }
 
-        // Pagination
-        const pageNum = Number(page);
+        // Pagination Logic
+        const pageNum = Math.max(1, Number(page));
         const limitNum = Number(limit);
+        const total = results.length;
         const startIndex = (pageNum - 1) * limitNum;
         const endIndex = startIndex + limitNum;
+        
         const paginatedResults = results.slice(startIndex, endIndex);
+        const hasMore = endIndex < total;
+        const nextPage = hasMore ? pageNum + 1 : null;
 
         res.json({
-            items: paginatedResults,
-            total: results.length,
-            page: pageNum,
-            limit: limitNum
+            data: {
+                items: paginatedResults,
+                pagination: {
+                    total,
+                    page: pageNum,
+                    limit: limitNum,
+                    hasMore,
+                    nextPage
+                }
+            },
+            error: null
         });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching shloks', error });
