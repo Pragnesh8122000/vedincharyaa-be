@@ -11,6 +11,15 @@ if (fs.existsSync(SHLOKS_FILE)) {
     shloksCache = JSON.parse(fs.readFileSync(SHLOKS_FILE, 'utf-8'));
 }
 
+const AUDIO_BASE_URL = process.env.AUDIO_BASE_URL || 'https://everyday-gita-audio.b-cdn.net';
+
+const addAudioUrl = (shlok: Shlok): Shlok => {
+    return {
+        ...shlok,
+        audioUrl: `${AUDIO_BASE_URL}/chapter-${shlok.chapterNumber}-verse-${shlok.verseNumber}.mp3`
+    };
+};
+
 export const getShloks = (req: Request, res: Response) => {
     try {
         let results = shloksCache;
@@ -51,7 +60,8 @@ export const getShloks = (req: Request, res: Response) => {
         const startIndex = (pageNum - 1) * limitNum;
         const endIndex = startIndex + limitNum;
         
-        const paginatedResults = results.slice(startIndex, endIndex);
+        // Add audioUrl to paginated results
+        const paginatedResults = results.slice(startIndex, endIndex).map(addAudioUrl);
         const hasMore = endIndex < total;
         const nextPage = hasMore ? pageNum + 1 : null;
 
@@ -82,7 +92,7 @@ export const getShlokById = (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Shlok not found' });
         }
         
-        res.json(shlok);
+        res.json(addAudioUrl(shlok));
     } catch (error) {
         res.status(500).json({ message: 'Error fetching shlok', error });
     }
