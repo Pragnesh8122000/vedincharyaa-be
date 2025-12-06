@@ -9,4 +9,8 @@ export interface Shlok {
     meaningHindi: string;
     tags: string[];
     audioUrl?: string;
+    words?: {
+        sanskrit: string;
+        meaning: string;
+    }[];
 }

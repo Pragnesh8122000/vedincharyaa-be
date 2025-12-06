@@ -44,6 +44,10 @@ const shlokSchema: Schema = new Schema({
         type: String,
         required: false,
     },
+    words: [{
+        sanskrit: String,
+        meaning: String,
+    }],
 });
 
 shlokSchema.index({ chapterNumber: 1, verseNumber: 1 }, { unique: true });
