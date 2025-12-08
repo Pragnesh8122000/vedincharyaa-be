@@ -7,7 +7,7 @@ const CHAPTERS_FILE = path.join(__dirname, '../data/gita-chapters.json');
 export const getChapters = (req: Request, res: Response) => {
     try {
         if (!fs.existsSync(CHAPTERS_FILE)) {
-            return res.status(500).json({ message: 'Data not found. Please run seed script.' });
+            return res.sendResponse(false, 500, 'CHAPTERS_DATA_NOT_FOUND');
         }
         const chapters = JSON.parse(fs.readFileSync(CHAPTERS_FILE, 'utf-8'));
         
@@ -22,13 +22,13 @@ export const getChapters = (req: Request, res: Response) => {
             verseCount: c.verses_count
         }));
 
-        res.json(mappedChapters);
+        res.sendResponse(true, 200, 'CHAPTERS_FETCHED', mappedChapters);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching chapters', error });
+        res.sendResponse(false, 500, 'CHAPTERS_FETCH_ERROR', error);
     }
 };
 
 export const getChapterVerses = (req: Request, res: Response) => {
     // This can be implemented by filtering shloks, or if we want just verse numbers
-    res.status(501).json({ message: 'Not implemented yet' });
+    res.sendResponse(false, 501, 'NOT_IMPLEMENTED');
 };

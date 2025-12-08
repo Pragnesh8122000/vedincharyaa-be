@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import MemorizationProgress from '../models/memorizationModel';
-import ShlokModel from '../models/shlokModel';
+import { MemorizationProgress } from '../models/MemorizationProgress';
+import fs from 'fs';
+import path from 'path';
+import { Shlok } from '../models/Shlok';
 
 // Helper for Leitner System intervals (in days)
 const BOX_INTERVALS: { [key: number]: number } = {
@@ -11,10 +13,16 @@ const BOX_INTERVALS: { [key: number]: number } = {
     5: 30,
 };
 
-export const getDueShloks = async (req: Request, res: Response) => {
-    try {
-        const userId = req.query.userId || 'dummy_user_id'; // In real app, get from auth middleware
+const SHLOKS_FILE = path.join(__dirname, '../data/gita-shloks.json');
+let shloksCache: Shlok[] = [];
 
+if (fs.existsSync(SHLOKS_FILE)) {
+    shloksCache = JSON.parse(fs.readFileSync(SHLOKS_FILE, 'utf-8'));
+}
+
+export const getDueShloks = async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
         const now = new Date();
         
         // Find progress records where nextReviewDate is <= now
@@ -23,41 +31,48 @@ export const getDueShloks = async (req: Request, res: Response) => {
             nextReviewDate: { $lte: now }
         });
 
-        // Also, fetch some new shloks if we don't have many due? 
-        // For now, let's just return what is due.
-        
-        // Fetch the actual Shlok details
-        const dueShloks = await Promise.all(dueProgress.map(async (p) => {
-            const shlok = await ShlokModel.findOne({ 
-                chapterNumber: p.chapterNumber, 
-                verseNumber: p.verseNumber 
-            });
+        // Fetch the actual Shlok details from cache
+        const dueShloks = dueProgress.map((p: any) => {
+            const shlok = shloksCache.find(s => s.chapterNumber === p.chapterNumber && s.verseNumber === p.verseNumber);
+            if (!shlok) return null;
             return {
-                ...shlok?.toObject(),
+                ...shlok,
                 progress: p
             };
-        }));
+        }).filter(item => item !== null);
 
-        res.json(dueShloks.filter(s => s.chapterNumber)); // Filter out any nulls
+        res.sendResponse(true, 200, 'MEMORIZATION_DUE_FETCHED', dueShloks);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching due shloks', error });
+        res.sendResponse(false, 500, 'MEMORIZATION_DUE_ERROR', error);
     }
 };
 
-export const updateProgress = async (req: Request, res: Response) => {
+export const getAllProgress = async (req: any, res: Response) => {
     try {
-        const { userId = 'dummy_user_id', chapterNumber, verseNumber, isCorrect } = req.body;
+        const userId = req.user.id;
+        const progress = await MemorizationProgress.find({ userId });
+        res.sendResponse(true, 200, 'MEMORIZATION_PROGRESS_FETCHED', progress);
+    } catch (error) {
+        res.sendResponse(false, 500, 'MEMORIZATION_PROGRESS_ERROR', error);
+    }
+};
+
+export const updateProgress = async (req: any, res: Response) => {
+    try {
+        const { chapterNumber, verseNumber, isCorrect } = req.body;
+        const userId = req.user.id;
+        const shlokId = `${chapterNumber}-${verseNumber}`;
 
         let progress = await MemorizationProgress.findOne({
             userId,
-            chapterNumber,
-            verseNumber
+            shlokId
         });
 
         if (!progress) {
             // New interaction
             progress = new MemorizationProgress({
                 userId,
+                shlokId,
                 chapterNumber,
                 verseNumber,
                 box: 1,
@@ -74,7 +89,7 @@ export const updateProgress = async (req: Request, res: Response) => {
             progress.box = 1;
         }
 
-        const daysToAdd = BOX_INTERVALS[progress.box];
+        const daysToAdd = BOX_INTERVALS[progress.box] || 1;
         const nextDate = new Date();
         nextDate.setDate(nextDate.getDate() + daysToAdd);
         
@@ -83,24 +98,28 @@ export const updateProgress = async (req: Request, res: Response) => {
 
         await progress.save();
 
-        res.json({ message: 'Progress updated', progress });
+        res.sendResponse(true, 200, 'MEMORIZATION_UPDATED', { progress });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating progress', error });
+        console.error(error);
+        res.sendResponse(false, 500, 'MEMORIZATION_UPDATE_ERROR', error);
     }
 };
 
-export const initializeProgress = async (req: Request, res: Response) => {
+export const initializeProgress = async (req: any, res: Response) => {
     try {
-        const { userId = 'dummy_user_id', chapterNumber, verseNumber } = req.body;
+        const { chapterNumber, verseNumber } = req.body;
+        const userId = req.user.id;
+        const shlokId = `${chapterNumber}-${verseNumber}`;
         
         // Check if exists
-        const exists = await MemorizationProgress.findOne({ userId, chapterNumber, verseNumber });
+        const exists = await MemorizationProgress.findOne({ userId, shlokId });
         if (exists) {
-            return res.status(400).json({ message: 'Already tracking this shlok' });
+            return res.sendResponse(false, 400, 'MEMORIZATION_EXISTS');
         }
 
         const progress = new MemorizationProgress({
             userId,
+            shlokId,
             chapterNumber,
             verseNumber,
             box: 1,
@@ -109,8 +128,21 @@ export const initializeProgress = async (req: Request, res: Response) => {
         });
 
         await progress.save();
-        res.status(201).json(progress);
+        res.sendResponse(true, 201, 'MEMORIZATION_INITIALIZED', progress);
     } catch (error) {
-        res.status(500).json({ message: 'Error initializing progress', error });
+        res.sendResponse(false, 500, 'MEMORIZATION_INIT_ERROR', error);
+    }
+};
+
+export const removeProgress = async (req: any, res: Response) => {
+    try {
+        const { chapterNumber, verseNumber } = req.body;
+        const userId = req.user.id;
+        const shlokId = `${chapterNumber}-${verseNumber}`;
+        
+        await MemorizationProgress.findOneAndDelete({ userId, shlokId });
+        res.sendResponse(true, 200, 'MEMORIZATION_REMOVED');
+    } catch (error) {
+        res.sendResponse(false, 500, 'MEMORIZATION_REMOVE_ERROR', error);
     }
 };

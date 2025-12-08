@@ -65,21 +65,18 @@ export const getShloks = (req: Request, res: Response) => {
         const hasMore = endIndex < total;
         const nextPage = hasMore ? pageNum + 1 : null;
 
-        res.json({
-            data: {
-                items: paginatedResults,
-                pagination: {
-                    total,
-                    page: pageNum,
-                    limit: limitNum,
-                    hasMore,
-                    nextPage
-                }
-            },
-            error: null
+        res.sendResponse(true, 200, 'SHLOKS_FETCHED', {
+            items: paginatedResults,
+            pagination: {
+                total,
+                page: pageNum,
+                limit: limitNum,
+                hasMore,
+                nextPage
+            }
         });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching shloks', error });
+        res.sendResponse(false, 500, 'SHLOKS_FETCHED_ERROR', error);
     }
 };
 
@@ -89,11 +86,11 @@ export const getShlokById = (req: Request, res: Response) => {
         const shlok = shloksCache.find(s => s.chapterNumber === Number(chapter) && s.verseNumber === Number(verse));
         
         if (!shlok) {
-            return res.status(404).json({ message: 'Shlok not found' });
+            return res.sendResponse(false, 404, 'SHLOK_NOT_FOUND');
         }
         
-        res.json(addAudioUrl(shlok));
+        res.sendResponse(true, 200, 'SHLOK_FETCHED', addAudioUrl(shlok));
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching shlok', error });
+        res.sendResponse(false, 500, 'SHLOK_FETCHED_ERROR', error);
     }
 };

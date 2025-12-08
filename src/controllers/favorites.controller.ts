@@ -1,54 +1,76 @@
 import { Request, Response } from 'express';
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import { Shlok } from '../models/Shlok';
+import { Favorite } from '../models/Favorite';
 
-const FAVORITES_FILE = path.join(__dirname, '../data/favorites.json');
 const SHLOKS_FILE = path.join(__dirname, '../data/gita-shloks.json');
-
-let favorites: { shlokId: string, addedAt: string }[] = [];
 let shloksCache: Shlok[] = [];
 
-// Load data
-if (fs.existsSync(FAVORITES_FILE)) {
-    favorites = JSON.parse(fs.readFileSync(FAVORITES_FILE, 'utf-8'));
-}
 if (fs.existsSync(SHLOKS_FILE)) {
     shloksCache = JSON.parse(fs.readFileSync(SHLOKS_FILE, 'utf-8'));
 }
 
-const saveData = () => {
-    fs.writeFileSync(FAVORITES_FILE, JSON.stringify(favorites, null, 2));
-};
-
-export const getFavorites = (req: Request, res: Response) => {
-    const favoriteShloks = favorites.map(fav => {
-        const [chapter, verse] = fav.shlokId.split('-');
-        const shlok = shloksCache.find(s => s.chapterNumber === Number(chapter) && s.verseNumber === Number(verse));
-        return shlok ? { ...shlok, addedAt: fav.addedAt } : null;
-    }).filter(s => s !== null);
-    
-    res.json(favoriteShloks);
-};
-
-export const addFavorite = (req: Request, res: Response) => {
-    const { shlokId } = req.body; // Format: "1-1" (chapter-verse)
-    if (!favorites.some(f => f.shlokId === shlokId)) {
-        favorites.push({ shlokId, addedAt: new Date().toISOString() });
-        saveData();
+export const getFavorites = async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const favorites = await Favorite.find({ userId }).sort({ createdAt: -1 });
+        
+        const favoriteShloks = favorites.map(fav => {
+            // Support both '2-47' and '2-47' formats (though split works for both strings)
+            const parts = fav.shlokId.split('-');
+            const chapter = Number(parts[0]);
+            const verse = Number(parts[1]);
+            
+            const shlok = shloksCache.find(s => s.chapterNumber === chapter && s.verseNumber === verse);
+            return shlok ? { ...shlok, addedAt: fav.createdAt } : null;
+        }).filter(item => item !== null);
+        
+        res.sendResponse(true, 200, 'FAVORITES_FETCHED', favoriteShloks);
+    } catch (error) {
+        res.sendResponse(false, 500, 'FAVORITES_FETCH_ERROR');
     }
-    res.json({ message: 'Added to favorites' });
 };
 
-export const removeFavorite = (req: Request, res: Response) => {
+export const addFavorite = async (req: any, res: Response) => {
+    const { shlokId } = req.body;
+    const userId = req.user.id;
+    
+    if (!shlokId) {
+        return res.sendResponse(false, 400, 'SHLOK_ID_REQUIRED');
+    }
+
+    try {
+        const existing = await Favorite.findOne({ userId, shlokId });
+        if (existing) {
+            return res.sendResponse(true, 200, 'FAVORITE_EXISTS', { shlokId });
+        }
+
+        await Favorite.create({ userId, shlokId });
+        res.sendResponse(true, 200, 'FAVORITE_ADDED', { shlokId });
+    } catch (error) {
+        res.sendResponse(false, 500, 'FAVORITE_ADD_ERROR');
+    }
+};
+
+export const removeFavorite = async (req: any, res: Response) => {
     const { shlokId } = req.params;
-    favorites = favorites.filter(f => f.shlokId !== shlokId);
-    saveData();
-    res.json({ message: 'Removed from favorites' });
+    const userId = req.user.id;
+    
+    try {
+        await Favorite.findOneAndDelete({ userId, shlokId });
+        res.sendResponse(true, 200, 'FAVORITE_REMOVED', { shlokId });
+    } catch (error) {
+        res.sendResponse(false, 500, 'FAVORITE_REMOVE_ERROR');
+    }
 };
 
-export const clearFavorites = (req: Request, res: Response) => {
-    favorites = [];
-    saveData();
-    res.json({ message: 'All favorites cleared' });
+export const clearFavorites = async (req: any, res: Response) => {
+    const userId = req.user.id;
+    try {
+        await Favorite.deleteMany({ userId });
+        res.sendResponse(true, 200, 'FAVORITES_CLEARED');
+    } catch (error) {
+        res.sendResponse(false, 500, 'FAVORITES_CLEAR_ERROR');
+    }
 };

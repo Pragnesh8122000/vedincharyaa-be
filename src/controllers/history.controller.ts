@@ -27,7 +27,7 @@ export const getHistory = (req: Request, res: Response) => {
         return shlok ? { ...shlok, viewedAt: item.viewedAt } : null;
     }).filter(s => s !== null).slice(0, 20); // Limit to last 20
     
-    res.json(historyShloks);
+    res.sendResponse(true, 200, 'HISTORY_FETCHED', historyShloks);
 };
 
 export const addHistory = (req: Request, res: Response) => {
@@ -40,5 +40,5 @@ export const addHistory = (req: Request, res: Response) => {
     if (history.length > 50) history = history.slice(0, 50);
     
     saveData();
-    res.json({ message: 'Added to history' });
+    res.sendResponse(true, 200, 'HISTORY_ADDED');
 };
