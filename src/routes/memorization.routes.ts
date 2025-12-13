@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { getDueShloks, updateProgress, initializeProgress, getAllProgress, removeProgress } from '../controllers/memorization.controller';
+import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 router.get('/', getAllProgress);
 router.get('/due', getDueShloks);

@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { getFavorites, addFavorite, removeFavorite, clearFavorites } from '../controllers/favorites.controller';
+import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 router.get('/', getFavorites);
 router.post('/', addFavorite);
