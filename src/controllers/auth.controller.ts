@@ -15,6 +15,7 @@ export const signup = async (req: Request, res: Response) => {
         if (existingUser) {
             return res.sendResponse(false, 400, 'USER_EXISTS');
         }
+        console.log(existingUser);
 
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
