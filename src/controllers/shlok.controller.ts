@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Shlok } from '../models/Shlok';
+import { HTTP_CODES } from '../common/httpCodes';
 
 const SHLOKS_FILE = path.join(__dirname, '../data/gita-shloks.json');
 let shloksCache: Shlok[] = [];
@@ -65,7 +66,7 @@ export const getShloks = (req: Request, res: Response) => {
         const hasMore = endIndex < total;
         const nextPage = hasMore ? pageNum + 1 : null;
 
-        res.sendResponse(true, 200, 'SHLOKS_FETCHED', {
+        res.sendResponse(true, HTTP_CODES.OK, 'SHLOKS_FETCHED', {
             items: paginatedResults,
             pagination: {
                 total,
@@ -76,7 +77,7 @@ export const getShloks = (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        res.sendResponse(false, 500, 'SHLOKS_FETCHED_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'SHLOKS_FETCHED_ERROR', error);
     }
 };
 
@@ -86,11 +87,11 @@ export const getShlokById = (req: Request, res: Response) => {
         const shlok = shloksCache.find(s => s.chapterNumber === Number(chapter) && s.verseNumber === Number(verse));
         
         if (!shlok) {
-            return res.sendResponse(false, 404, 'SHLOK_NOT_FOUND');
+            return res.sendResponse(false, HTTP_CODES.NOT_FOUND, 'SHLOK_NOT_FOUND');
         }
         
-        res.sendResponse(true, 200, 'SHLOK_FETCHED', addAudioUrl(shlok));
+        res.sendResponse(true, HTTP_CODES.OK, 'SHLOK_FETCHED', addAudioUrl(shlok));
     } catch (error) {
-        res.sendResponse(false, 500, 'SHLOK_FETCHED_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'SHLOK_FETCHED_ERROR', error);
     }
 };

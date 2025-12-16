@@ -3,6 +3,7 @@ import { MemorizationProgress } from '../models/MemorizationProgress';
 import fs from 'fs';
 import path from 'path';
 import { Shlok } from '../models/Shlok';
+import { HTTP_CODES } from '../common/httpCodes';
 
 // Helper for Leitner System intervals (in days)
 const BOX_INTERVALS: { [key: number]: number } = {
@@ -41,9 +42,9 @@ export const getDueShloks = async (req: any, res: Response) => {
             };
         }).filter(item => item !== null);
 
-        res.sendResponse(true, 200, 'MEMORIZATION_DUE_FETCHED', dueShloks);
+        res.sendResponse(true, HTTP_CODES.OK, 'MEMORIZATION_DUE_FETCHED', dueShloks);
     } catch (error) {
-        res.sendResponse(false, 500, 'MEMORIZATION_DUE_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'MEMORIZATION_DUE_ERROR', error);
     }
 };
 
@@ -51,9 +52,9 @@ export const getAllProgress = async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const progress = await MemorizationProgress.find({ userId });
-        res.sendResponse(true, 200, 'MEMORIZATION_PROGRESS_FETCHED', progress);
+        res.sendResponse(true, HTTP_CODES.OK, 'MEMORIZATION_PROGRESS_FETCHED', progress);
     } catch (error) {
-        res.sendResponse(false, 500, 'MEMORIZATION_PROGRESS_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'MEMORIZATION_PROGRESS_ERROR', error);
     }
 };
 
@@ -98,10 +99,10 @@ export const updateProgress = async (req: any, res: Response) => {
 
         await progress.save();
 
-        res.sendResponse(true, 200, 'MEMORIZATION_UPDATED', { progress });
+        res.sendResponse(true, HTTP_CODES.OK, 'MEMORIZATION_UPDATED', { progress });
     } catch (error) {
         console.error(error);
-        res.sendResponse(false, 500, 'MEMORIZATION_UPDATE_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'MEMORIZATION_UPDATE_ERROR', error);
     }
 };
 
@@ -114,7 +115,7 @@ export const initializeProgress = async (req: any, res: Response) => {
         // Check if exists
         const exists = await MemorizationProgress.findOne({ userId, shlokId });
         if (exists) {
-            return res.sendResponse(false, 400, 'MEMORIZATION_EXISTS');
+            return res.sendResponse(false, HTTP_CODES.BAD_REQUEST, 'MEMORIZATION_EXISTS');
         }
 
         const progress = new MemorizationProgress({
@@ -128,9 +129,9 @@ export const initializeProgress = async (req: any, res: Response) => {
         });
 
         await progress.save();
-        res.sendResponse(true, 201, 'MEMORIZATION_INITIALIZED', progress);
+        res.sendResponse(true, HTTP_CODES.CREATED, 'MEMORIZATION_INITIALIZED', progress);
     } catch (error) {
-        res.sendResponse(false, 500, 'MEMORIZATION_INIT_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'MEMORIZATION_INIT_ERROR', error);
     }
 };
 
@@ -141,8 +142,8 @@ export const removeProgress = async (req: any, res: Response) => {
         const shlokId = `${chapterNumber}-${verseNumber}`;
         
         await MemorizationProgress.findOneAndDelete({ userId, shlokId });
-        res.sendResponse(true, 200, 'MEMORIZATION_REMOVED');
+        res.sendResponse(true, HTTP_CODES.OK, 'MEMORIZATION_REMOVED');
     } catch (error) {
-        res.sendResponse(false, 500, 'MEMORIZATION_REMOVE_ERROR', error);
+        res.sendResponse(false, HTTP_CODES.INTERNAL_SERVER_ERROR, 'MEMORIZATION_REMOVE_ERROR', error);
     }
 };

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { HTTP_CODES } from '../common/httpCodes';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_123';
 
@@ -8,7 +9,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer <token>"
 
     if (!token) {
-        return res.status(401).json({ message: 'Authentication required' });
+        return res.status(HTTP_CODES.UNAUTHORIZED).json({ message: 'Authentication required' });
     }
 
     try {
@@ -16,6 +17,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         (req as any).user = { id: decoded.id };
         next();
     } catch (error) {
-        return res.status(403).json({ message: 'Invalid or expired token' });
+        return res.status(HTTP_CODES.FORBIDDEN).json({ message: 'Invalid or expired token' });
     }
 };

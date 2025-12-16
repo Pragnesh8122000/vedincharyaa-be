@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Shlok } from '../models/Shlok';
+import { HTTP_CODES } from '../common/httpCodes';
 
 const HISTORY_FILE = path.join(__dirname, '../data/history.json');
 const SHLOKS_FILE = path.join(__dirname, '../data/gita-shloks.json');
@@ -27,7 +28,7 @@ export const getHistory = (req: Request, res: Response) => {
         return shlok ? { ...shlok, viewedAt: item.viewedAt } : null;
     }).filter(s => s !== null).slice(0, 20); // Limit to last 20
     
-    res.sendResponse(true, 200, 'HISTORY_FETCHED', historyShloks);
+    res.sendResponse(true, HTTP_CODES.OK, 'HISTORY_FETCHED', historyShloks);
 };
 
 export const addHistory = (req: Request, res: Response) => {
@@ -40,5 +41,5 @@ export const addHistory = (req: Request, res: Response) => {
     if (history.length > 50) history = history.slice(0, 50);
     
     saveData();
-    res.sendResponse(true, 200, 'HISTORY_ADDED');
+    res.sendResponse(true, HTTP_CODES.OK, 'HISTORY_ADDED');
 };
