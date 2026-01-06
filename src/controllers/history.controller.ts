@@ -26,7 +26,7 @@ export const getHistory = (req: Request, res: Response) => {
         const [chapter, verse] = item.shlokId.split('-');
         const shlok = shloksCache.find(s => s.chapterNumber === Number(chapter) && s.verseNumber === Number(verse));
         return shlok ? { ...shlok, viewedAt: item.viewedAt } : null;
-    }).filter(s => s !== null).slice(0, 20); // Limit to last 20
+    }).filter(s => s !== null).slice(0, 20);
     
     res.sendResponse(true, HTTP_CODES.OK, 'HISTORY_FETCHED', historyShloks);
 };

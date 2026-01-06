@@ -44,5 +44,14 @@
     "NOT_IMPLEMENTED": "Not implemented yet",
     "SHLOK_ID_REQUIRED": "shlokId is required",
     "UNKNOWN_ERROR": "An unknown error occurred",
-    "UNKNOWN_MESSAGE_CODE": "Unknown message code"
+    "UNKNOWN_MESSAGE_CODE": "Unknown message code",
+    "AI_EXPLANATION_FETCHED": "Explanation generated successfully",
+    "AI_QUESTION_ANSWERED": "Answer generated successfully",
+    "AI_SERVICE_ERROR": "Error generating AI response",
+    "AI_SHLOK_REQUIRED": "Shlok data is required",
+    "AI_SERVICE_UNAVAILABLE": "AI service is currently unavailable",
+    "SHLOK_EXPLAINED": "Shlok explanation generated.",
+    "SHLOK_QUESTION_ANSWERED": "Answer generated successfully.",
+    "AI_RESPONSE_FAILED": "Unable to generate explanation right now.",
+    "AI_LIMIT_REACHED": "Daily AI usage limit reached."
 }
