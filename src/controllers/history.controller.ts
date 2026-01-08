@@ -1,45 +1,69 @@
-import { Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
-import { Shlok } from '../models/Shlok';
-import { HTTP_CODES } from '../common/httpCodes';
+import { Request, Response } from "express";
+import HistoryModel from "../models/History";
+import { HTTP_CODES } from "../common/httpCodes";
+import { findShlokResiliently } from "../utils/shlokLoader";
 
-const HISTORY_FILE = path.join(__dirname, '../data/history.json');
-const SHLOKS_FILE = path.join(__dirname, '../data/gita-shloks.json');
+export const getHistory = async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    // Get last 20 history items
+    const historyItems = await HistoryModel.find({ userId })
+      .sort({ viewedAt: -1 })
+      .limit(20);
 
-let history: { shlokId: string, viewedAt: string }[] = [];
-let shloksCache: Shlok[] = [];
+    const historyShlokPromises = historyItems.map(async (item) => {
+      const [chapter, verse] = item.shlokId.split("-");
+      const shlok = await findShlokResiliently(Number(chapter), Number(verse));
+      if (!shlok) return null;
 
-if (fs.existsSync(HISTORY_FILE)) {
-    history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf-8'));
-}
-if (fs.existsSync(SHLOKS_FILE)) {
-    shloksCache = JSON.parse(fs.readFileSync(SHLOKS_FILE, 'utf-8'));
-}
+      return {
+        ...(shlok.toObject ? shlok.toObject() : shlok),
+        viewedAt: item.viewedAt,
+      };
+    });
 
-const saveData = () => {
-    fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+    const historyShloks = (await Promise.all(historyShlokPromises)).filter(
+      (s) => s !== null
+    );
+
+    res.sendResponse(true, HTTP_CODES.OK, "HISTORY_FETCHED", historyShloks);
+  } catch (error) {
+    res.sendResponse(
+      false,
+      HTTP_CODES.INTERNAL_SERVER_ERROR,
+      "HISTORY_FETCH_ERROR",
+      error
+    );
+  }
 };
 
-export const getHistory = (req: Request, res: Response) => {
-    const historyShloks = history.map(item => {
-        const [chapter, verse] = item.shlokId.split('-');
-        const shlok = shloksCache.find(s => s.chapterNumber === Number(chapter) && s.verseNumber === Number(verse));
-        return shlok ? { ...shlok, viewedAt: item.viewedAt } : null;
-    }).filter(s => s !== null).slice(0, 20);
-    
-    res.sendResponse(true, HTTP_CODES.OK, 'HISTORY_FETCHED', historyShloks);
-};
-
-export const addHistory = (req: Request, res: Response) => {
+export const addHistory = async (req: any, res: Response) => {
+  try {
     const { shlokId } = req.body;
-    // Remove if exists to move to top
-    history = history.filter(h => h.shlokId !== shlokId);
-    // Add to beginning
-    history.unshift({ shlokId, viewedAt: new Date().toISOString() });
-    // Limit history size
-    if (history.length > 50) history = history.slice(0, 50);
-    
-    saveData();
-    res.sendResponse(true, HTTP_CODES.OK, 'HISTORY_ADDED');
+    const userId = req.user.id;
+
+    if (!shlokId) {
+      return res.sendResponse(
+        false,
+        HTTP_CODES.BAD_REQUEST,
+        "SHLOK_ID_REQUIRED"
+      );
+    }
+
+    // Update or create history entry
+    await HistoryModel.findOneAndUpdate(
+      { userId, shlokId },
+      { viewedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    res.sendResponse(true, HTTP_CODES.OK, "HISTORY_ADDED");
+  } catch (error) {
+    res.sendResponse(
+      false,
+      HTTP_CODES.INTERNAL_SERVER_ERROR,
+      "HISTORY_ADD_ERROR",
+      error
+    );
+  }
 };
