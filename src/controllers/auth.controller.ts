@@ -82,6 +82,7 @@ export const login = async (req: Request, res: Response) => {
             JWT_SECRET,
             { expiresIn: '7d' }
         );
+        console.log(token);
 
         res.sendResponse(true, HTTP_CODES.OK, 'LOGIN_SUCCESS', {
             token,
